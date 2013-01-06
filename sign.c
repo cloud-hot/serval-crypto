@@ -23,8 +23,7 @@ int main ( int argc, char *argv[] ) {
     unsigned char *sid;
     keyring_identity *new_ident;
     int msg_length = strlen(argv[1]);
-    unsigned char msg[msg_length];
-    strcpy(msg,argv[1]);
+    unsigned char *msg = argv[1];
       
     char keyringFile[1024];
     FORM_SERVAL_INSTANCE_PATH(keyringFile, "serval.keyring"); // this should target default Serval keyring
@@ -64,15 +63,14 @@ int main ( int argc, char *argv[] ) {
     unsigned long long sig_length = SIGNATURE_BYTES;
     crypto_hash_sha512(hash, msg, msg_length); // create sha512 hash of message, which will then be signed
 
-    int success = crypto_create_signature(key, hash, crypto_hash_sha512_BYTES, &msg[msg_length], &sig_length); // create signature of message hash, append it to end of message
+    unsigned char signed_msg[msg_length + sig_length];
+    strncpy(signed_msg,msg,msg_length);
+
+    int success = crypto_create_signature(key, hash, crypto_hash_sha512_BYTES, &signed_msg[msg_length], &sig_length); // create signature of message hash, append it to end of message
     
-    //char original_msg[msg_length];
-    //strncpy(original_msg, msg, msg_length);
-    //printf("%s\n",original_msg);
+    //printf("%s\n",msg);
     
-    char signature[sig_length];
-    bcopy(msg+msg_length,signature,sig_length); // bcopy instead of strncpy in case of 0x00 in middle of string
-    printf("%s\n", alloca_tohex(signature, sig_length));
+    printf("%s\n", alloca_tohex(signed_msg + msg_length, sig_length));
     //printf("%s\n",alloca_tohex_sid(my_subscriber->sid));
     printf("%s\n",sid);
     
