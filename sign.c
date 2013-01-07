@@ -16,7 +16,7 @@ extern keyring_file *keyring; // keyring is global Serval variable
 int main ( int argc, char *argv[] ) {
   
   if (argc < 2 || argc > 3) {  /* wrong number of arguments */
-    printf("usage: sign <message> [<sid>]\n");
+    printf("usage: serval-sign <message> [<sid>]\n");
     return 1;
     
   } else {

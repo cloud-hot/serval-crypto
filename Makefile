@@ -3,7 +3,7 @@
 
 #SERVALD_ROOT=/home/hawkinsw/code/serval/serval-dna/serval-dna/
 SERVALD_ROOT=/home/danarky/OTI/commotion/serval-dna
-CFLAGS=-I$(SERVALD_ROOT) -I$(SERVALD_ROOT)/nacl/include
+CFLAGS=-I$(SERVALD_ROOT) -I$(SERVALD_ROOT)/nacl/include -g -O0
 LIBS=-L$(SERVALD_ROOT)/ -lservald
 CC=gcc
 
