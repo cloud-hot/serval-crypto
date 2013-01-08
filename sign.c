@@ -130,7 +130,7 @@ int get_sid(unsigned char *str) {
 }
 
 void print_usage() {
-  printf("usage: serval-sign [<message>] [-s <sid>]\n");
+  printf("usage: serval-sign <message> [-s <sid>]\n");
 }
 
 void get_msg() {
