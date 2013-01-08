@@ -60,7 +60,7 @@ int main ( int argc, char *argv[] ) {
   int msg_length = strlen(msg);
   
   unsigned char bin_sig[SIGNATURE_BYTES];
-  fromhex(bin_sig,sig,SIGNATURE_BYTES); // convert signature from hex to binary
+  fromhexstr(bin_sig,sig,SIGNATURE_BYTES); // convert signature from hex to binary
   
   unsigned char msg_sig[msg_length + SIGNATURE_BYTES];
   strncpy(msg_sig,msg,msg_length);
