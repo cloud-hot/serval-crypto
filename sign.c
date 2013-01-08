@@ -65,8 +65,6 @@ int main ( int argc, char *argv[] ) {
   }
   
   int msg_length = strlen(msg);
-  printf("msg: [%s]\n",msg);
-  printf("msg_length: %d\n",msg_length);
   
   char keyringFile[1024];
   FORM_SERVAL_INSTANCE_PATH(keyringFile, "serval.keyring"); // this should target default Serval keyring
