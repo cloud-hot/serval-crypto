@@ -62,10 +62,10 @@ int main ( int argc, char *argv[] ) {
   unsigned char bin_sig[SIGNATURE_BYTES];
   fromhexstr(bin_sig,sig,SIGNATURE_BYTES); // convert signature from hex to binary
   
-  unsigned char msg_sig[msg_length + SIGNATURE_BYTES];
-  strncpy(msg_sig,msg,msg_length);
-  strncpy(msg_sig + msg_length,bin_sig,SIGNATURE_BYTES); // append signature to end of message
-  int msg_sig_length = strlen(msg_sig);
+  unsigned char combined_msg[msg_length + SIGNATURE_BYTES];
+  strncpy(combined_msg,msg,msg_length);
+  strncpy(combined_msg + msg_length,bin_sig,SIGNATURE_BYTES); // append signature to end of message
+  int combined_msg_length = strlen(combined_msg);
   
   char keyringFile[1024];
   FORM_SERVAL_INSTANCE_PATH(keyringFile, "serval.keyring"); // this should target default Serval keyring
@@ -107,7 +107,7 @@ int main ( int argc, char *argv[] ) {
   
   //printf("SAS: %s\n",alloca_tohex_sid(src_sub->sas_public));
   
-  int verdict = crypto_verify_message(src_sub, msg_sig, &msg_sig_length);
+  int verdict = crypto_verify_message(src_sub, combined_msg, &combined_msg_length);
   
   if (!verdict) {
     printf("Message verified!\n");
