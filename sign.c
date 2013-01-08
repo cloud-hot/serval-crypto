@@ -16,7 +16,8 @@ extern keyring_file *keyring; // keyring is global Serval variable
 
 unsigned char *sid;
 unsigned char *msg;
-  
+int need_cleanup = 0;
+
 int get_sid(unsigned char *str);
 void print_usage();
 void get_msg();
@@ -112,6 +113,9 @@ int main ( int argc, char *argv[] ) {
   //printf("%s\n",alloca_tohex_sid(my_subscriber->sid));
   printf("%s\n",sid);
   
+  keyring_free(keyring);
+  if (need_cleanup) free(msg);
+  
   return success;
   
 }
@@ -130,6 +134,7 @@ void print_usage() {
 }
 
 void get_msg() {
+  need_cleanup = 1;
   char buffer[BUF_SIZE];
   size_t contentSize = 1; // includes NULL
   msg = malloc(sizeof(char) * BUF_SIZE);
