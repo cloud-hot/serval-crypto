@@ -91,7 +91,6 @@ int main ( int argc, char *argv[] ) {
   }
   
   unsigned char packedSid[SID_SIZE];
-  //int x = stowSid(packedSid,0,alloca_tohex_sid(my_subscriber->sid));
   int x = stowSid(packedSid,0,sid);
   
   unsigned char *key=keyring_find_sas_private(keyring, packedSid, NULL); // get SAS key associated with our SID
@@ -107,10 +106,7 @@ int main ( int argc, char *argv[] ) {
   
   int success = crypto_create_signature(key, hash, crypto_hash_sha512_BYTES, &signed_msg[msg_length], &sig_length); // create signature of message hash, append it to end of message
   
-  //printf("%s\n",msg);
-  
   printf("%s\n", alloca_tohex(signed_msg + msg_length, sig_length));
-  //printf("%s\n",alloca_tohex_sid(my_subscriber->sid));
   printf("%s\n",sid);
   
   keyring_free(keyring);

@@ -1,7 +1,5 @@
 all: verify sign
 
-CFLAGS+= -O0
-
 sign: Makefile sign.c
 	$(CC) $(CFLAGS) -o serval-sign sign.c $(LDFLAGS)
 

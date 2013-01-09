@@ -57,16 +57,31 @@ int main ( int argc, char *argv[] ) {
   }
   
   if (!msg) get_msg(&msg);
+
+  if (!sid || !msg || !sig) {
+    print_usage();
+    return 1;
+  }
+
   int msg_length = strlen(msg);
   
   unsigned char bin_sig[SIGNATURE_BYTES];
-  fromhexstr(bin_sig,sig,SIGNATURE_BYTES); // convert signature from hex to binary
+  int valid_sig = fromhexstr(bin_sig,sig,SIGNATURE_BYTES); // convert signature from hex to binary
   
+  if (strlen(sig) != 2*SIGNATURE_BYTES || valid_sig) {
+    fprintf(stderr, "Invalid signature\n");
+    return 1;
+  }
+  if (!str_is_subscriber_id(sid)) {
+    fprintf(stderr,"Invalid SID\n");
+    return 1;
+  }
+
   unsigned char combined_msg[msg_length + SIGNATURE_BYTES];
-  strncpy(combined_msg,msg,msg_length);
-  strncpy(combined_msg + msg_length,bin_sig,SIGNATURE_BYTES); // append signature to end of message
-  int combined_msg_length = strlen(combined_msg);
-  
+  memcpy(combined_msg,msg,msg_length);
+  memcpy(combined_msg + msg_length,bin_sig,SIGNATURE_BYTES); // append signature to end of message
+  int combined_msg_length = msg_length + SIGNATURE_BYTES;
+
   char keyringFile[1024];
   FORM_SERVAL_INSTANCE_PATH(keyringFile, "serval.keyring"); // this should target default Serval keyring
   keyring = keyring_open(keyringFile);
@@ -79,16 +94,15 @@ int main ( int argc, char *argv[] ) {
     fprintf(stderr, "Failed to unlock any Serval identities\n");
     return 1;
   }
-  
+
   unsigned char packedSid[SID_SIZE];
   stowSid(packedSid,0,sid);
-  
+
   struct subscriber *src_sub = find_subscriber(packedSid, SID_SIZE, 0); // get Serval identity described by given SID
   if (!src_sub) {
     fprintf(stderr, "Failed to fetch Serval subscriber\n");
     return 1;
   }
-  //printf("SID: %s\n",alloca_tohex_sid(src_sub->sid));
   
   while (!src_sub->sas_valid && sas_validation_attempts < MAX_SAS_VALIDATION_ATTEMPTS) {
   
@@ -104,8 +118,6 @@ int main ( int argc, char *argv[] ) {
     fprintf(stderr, "Could not validate the signing key!\n");
     return 1;
   }
-  
-  //printf("SAS: %s\n",alloca_tohex_sid(src_sub->sas_public));
   
   int verdict = crypto_verify_message(src_sub, combined_msg, &combined_msg_length);
   
