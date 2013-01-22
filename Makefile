@@ -33,7 +33,7 @@ define Package/serval-crypto/description
   and verifying these signatures.
 endef
 
-TARGET_CFLAGS += $(TLS_CFLAGS) -I$(BUILD_DIR)/serval-dna-2012-10-29 -I$(BUILD_DIR)/serval-dna-2012-10-29/nacl/include
+TARGET_CFLAGS += $(TLS_CFLAGS) -I$(BUILD_DIR)/serval-dna-2012-10-29 -I$(BUILD_DIR)/serval-dna-2012-10-29/nacl/include -O3
 TARGET_LDFLAGS += -L$(BUILD_DIR)/serval-dna-2012-10-29/ -lservald
 
 define Build/Prepare
