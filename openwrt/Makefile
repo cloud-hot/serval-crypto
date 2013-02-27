@@ -7,6 +7,7 @@ PKG_VERSION:=1.0
 PKG_SOURCE_URL:=https://github.com/opentechinstitute/serval-crypto/archive
 PKG_SOURCE:=$(PKG_VERSION).tar.gz
 
+PKG_MD5SUM:=7b3d4e7eada83e056e585ee37bcc87bd
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)
 
 include $(INCLUDE_DIR)/package.mk
