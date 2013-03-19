@@ -98,7 +98,7 @@ int main ( int argc, char *argv[] ) {
   unsigned char packedSid[SID_SIZE];
   stowSid(packedSid,0,sid);
 
-  struct subscriber *src_sub = find_subscriber(packedSid, SID_SIZE, 0); // get Serval identity described by given SID
+  struct subscriber *src_sub = find_subscriber(packedSid, SID_SIZE, 1); // get Serval identity described by given SID
   if (!src_sub) {
     fprintf(stderr, "Failed to fetch Serval subscriber\n");
     return 1;
