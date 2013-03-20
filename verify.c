@@ -18,6 +18,138 @@ int fetch_next_arg(unsigned char **var, char **argv[]);
 void get_msg();
 int need_cleanup = 0;
 
+int keyring_send_sas_request_client(struct subscriber *subscriber){
+  int ret, client_port, found = 0;
+  unsigned char srcsid[SID_SIZE];
+  time_ms_t now = gettime_ms();
+  
+  if (overlay_mdp_getmyaddr(0,srcsid)) {
+    printf("Could not get local address");
+    return 1;
+  }
+
+  if (subscriber->sas_valid)
+    return 0;
+  
+  if (now < subscriber->sas_last_request + 100){
+    printf("Too soon to ask for SAS mapping again\n");
+    return 0;
+  }
+  
+  if (!my_subscriber) {
+    printf("couldn't request SAS (I don't know who I am)\n");
+    return 1;
+  }
+  
+  printf("Requesting SAS mapping for SID=%s\n", alloca_tohex_sid(subscriber->sid));
+  
+  if (overlay_mdp_bind(my_subscriber->sid,(client_port=32768+(random()&32767)))) {
+    printf("Failed to bind to client socket\n");
+    return 1;
+  }
+
+/* request mapping (send request auth-crypted). */
+  overlay_mdp_frame mdp;
+  bzero(&mdp,sizeof(mdp));  
+
+  mdp.packetTypeAndFlags=MDP_TX;
+  mdp.out.queue=OQ_MESH_MANAGEMENT;
+  bcopy(subscriber->sid,mdp.out.dst.sid,SID_SIZE);
+  mdp.out.dst.port=MDP_PORT_KEYMAPREQUEST;
+  mdp.out.src.port=client_port;
+  bcopy(srcsid,mdp.out.src.sid,SID_SIZE);
+  mdp.out.payload_length=1;
+  mdp.out.payload[0]=KEYTYPE_CRYPTOSIGN;
+  
+  ret = overlay_mdp_send(&mdp, 0,0);
+  if (ret) {
+    printf("Failed to send SAS resolution request: %d\n", ret);
+    if (mdp.packetTypeAndFlags==MDP_ERROR)
+	{
+	  printf("  MDP Server error #%d: '%s'\n",
+	       mdp.error.error,mdp.error.message);
+	}
+    return 1;
+  }
+  
+  time_ms_t timeout = now + 5000;
+
+  while(now<timeout) {
+    time_ms_t timeout_ms = timeout - gettime_ms();
+    int result = overlay_mdp_client_poll(timeout_ms);
+    
+    if (result>0) {
+      int ttl=-1;
+      if (overlay_mdp_recv(&mdp, client_port, &ttl)==0) {
+	switch(mdp.packetTypeAndFlags&MDP_TYPE_MASK) {
+	  case MDP_ERROR:
+	    printf("overlay_mdp_recv: %s (code %d)\n", mdp.error.message, mdp.error.error);
+	    break;
+	  case MDP_TX:
+	  {
+	    printf("Received SAS mapping response\n");
+	    found = 1;
+	    break;
+	  }
+	  break;
+	  default:
+	    printf("overlay_mdp_recv: Unexpected MDP frame type 0x%x\n", mdp.packetTypeAndFlags);
+	    break;
+	}
+	if (found) break;
+      }
+    }
+    now=gettime_ms();
+    if (servalShutdown)
+      break;
+  }
+
+  unsigned keytype = mdp.out.payload[0];
+  
+  if (keytype!=KEYTYPE_CRYPTOSIGN) {
+    printf("Ignoring SID:SAS mapping with unsupported key type %u\n", keytype);
+    return 1;
+  }
+  
+  if (mdp.out.payload_length < 1 + SAS_SIZE) {
+    printf("Truncated key mapping announcement? payload_length: %d\n", mdp.out.payload_length);
+    return 1;
+  }
+  
+  unsigned char plain[mdp.out.payload_length];
+  unsigned long long plain_len=0;
+  unsigned char *sas_public=&mdp.out.payload[1];
+  unsigned char *compactsignature = &mdp.out.payload[1+SAS_SIZE];
+  int siglen=SID_SIZE+crypto_sign_edwards25519sha512batch_BYTES;
+  unsigned char signature[siglen];
+  
+  /* reconstitute signed SID for verification */
+  bcopy(&compactsignature[0],&signature[0],64);
+  bcopy(&mdp.out.src.sid[0],&signature[64],SID_SIZE);
+  
+  int r=crypto_sign_edwards25519sha512batch_open(plain,&plain_len,
+						 signature,siglen,
+						 sas_public);
+  if (r) {
+    printf("SID:SAS mapping verification signature does not verify\n");
+    return 1;
+  }
+  /* These next two tests should never be able to fail, but let's just check anyway. */
+  if (plain_len != SID_SIZE) {
+    printf("SID:SAS mapping signed block is wrong length\n");
+    return 1;
+  }
+  if (memcmp(plain, mdp.out.src.sid, SID_SIZE) != 0) {
+    printf("SID:SAS mapping signed block is for wrong SID\n");
+    return 1;
+  }
+  
+  bcopy(sas_public, subscriber->sas_public, SAS_SIZE);
+  subscriber->sas_valid=1;
+  subscriber->sas_last_request=now;
+  return 0;
+}
+
 int main ( int argc, char *argv[] ) {
 
   int sas_validation_attempts = 0, num_identities = 0;
@@ -99,19 +231,15 @@ int main ( int argc, char *argv[] ) {
   stowSid(packedSid,0,sid);
 
   struct subscriber *src_sub = find_subscriber(packedSid, SID_SIZE, 1); // get Serval identity described by given SID
+
   if (!src_sub) {
     fprintf(stderr, "Failed to fetch Serval subscriber\n");
     return 1;
   }
   
-  while (!src_sub->sas_valid && sas_validation_attempts < MAX_SAS_VALIDATION_ATTEMPTS) {
-  
-    if (keyring_send_sas_request(src_sub)) { // send MDP request for SAS public key of given SID
-      printf("sas request failed\n");
+  if (keyring_send_sas_request_client(src_sub)) { // send MDP request for SAS public key of given SID
+      printf("SAS request failed\n");
       return 1;
-    }
-    sas_validation_attempts++;
-    usleep(100*1000);
   }
   
   if (!src_sub->sas_valid) {
