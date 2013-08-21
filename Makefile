@@ -1,5 +1,5 @@
 LDFLAGS+=-lservald
-CFLAGS+=-I../serval-dna -I../serval-dna/nacl/include -g
+override CFLAGS+=-I../serval-dna -I../serval-dna/nacl/include -g -DHAVE_BCOPY
 OBJS=serval-sign.o serval-verify.o
 
 all: serval-sign serval-verify

@@ -1,0 +1,14 @@
+Source: serval-crypto
+Section: utils
+Priority: optional
+Maintainer: Dan Staples <danstaples@opentechinstitute.org>
+Build-Depends: debhelper (>= 8.0.0), serval-dna (>= 0.90)
+Standards-Version: 3.9.4
+Homepage: https://github.com/opentechinstitute/serval-crypto
+
+Package: serval-crypto
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Serval-Crypto programs and library
+  Sign and verify arbitrary text with Serval's crypto API.
+
