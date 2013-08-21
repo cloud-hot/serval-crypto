@@ -4,10 +4,10 @@ OBJS=serval-sign.o serval-verify.o
 
 all: serval-sign serval-verify
 
-serval-sign: Makefile sign.c common.c serval-crypto.h
+serval-sign: Makefile sign.c serval-crypto.h
 	$(CC) $(CFLAGS) -o serval-sign sign.c common.c $(LDFLAGS)
 
-serval-verify: Makefile verify.c common.c serval-crypto.h
+serval-verify: Makefile verify.c serval-crypto.h
 	$(CC) $(CFLAGS) -o serval-verify verify.c common.c $(LDFLAGS)
 
 serval-sign.o: Makefile sign.c
