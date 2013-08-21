@@ -2,7 +2,7 @@ LDFLAGS=-lservald
 CFLAGS=-I../serval-dna -I../serval-dna/nacl/include -g
 OBJS=serval-sign.o serval-verify.o
 
-all: serval-sign serval-verify libserval-crypto.so
+all: serval-sign serval-verify
 
 serval-sign: Makefile sign.c common.c serval-crypto.h
 	$(CC) $(CFLAGS) -o serval-sign sign.c common.c $(LDFLAGS)
@@ -21,3 +21,5 @@ libserval-crypto.so: Makefile serval-verify.o serval-sign.o
 
 clean:
 	rm -f serval-sign serval-verify *.o core a.out libserval-crypto.so
+
+.PHONY: all clean
