@@ -1,4 +1,4 @@
-Serval-crypto, v1.0
+Serval-crypto, v2.1
 ===================
 
 Serval-crypto contains two programs that utilize Serval's crypto API:

@@ -4,7 +4,7 @@ SERVAL_VERSION:=batphone-release-0.90
 
 PKG_NAME:=serval-crypto
 PKG_RELEASE:=1
-PKG_VERSION:=1.0
+PKG_VERSION:=2.1
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=git://github.com/opentechinstitute/serval-crypto.git
@@ -31,7 +31,7 @@ define Package/serval-crypto/description
 endef
 
 TARGET_CFLAGS += $(TLS_CFLAGS) -I$(BUILD_DIR)/serval-dna-$(SERVAL_VERSION) -I$(BUILD_DIR)/serval-dna-$(SERVAL_VERSION)/nacl/include -O3
-TARGET_LDFLAGS += -L$(BUILD_DIR)/serval-dna-$(SERVAL_VERSION)/ -lservald
+TARGET_LDFLAGS += -L$(BUILD_DIR)/serval-dna-$(SERVAL_VERSION)/ -lservald -largp
 
 define Package/serval-crypto/install
 	$(INSTALL_DIR) $(1)/usr/sbin

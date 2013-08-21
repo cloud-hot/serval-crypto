@@ -8,61 +8,45 @@
 #include <overlay_address.h>
 #include <crypto.h>
 #include <str.h>
+#include <argp.h>
+
+#include "serval-crypto.h"
 
 #define KEYRING_PIN NULL
-#define BUF_SIZE 1024
 
 extern keyring_file *keyring; // keyring is global Serval variable
 
-unsigned char *sid;
-unsigned char *msg;
-int need_cleanup = 0;
+static int get_sid(unsigned char *str, unsigned char **sid);
 
-int get_sid(unsigned char *str);
-void print_usage();
-void get_msg();
+static struct arguments {
+  unsigned char *sid;
+  unsigned char *msg;
+} arguments;
 
-int main ( int argc, char *argv[] ) {
-
-  keyring_identity *new_ident;
-
-  switch (argc) {
+static error_t parse_opt (int key, char *arg, struct argp_state *state) {
+  struct arguments *arguments = state->input;
+  if (state->arg_num > 0)
+    return ARGP_ERR_UNKNOWN;
+  
+  switch (key) {
+    case 's':
+      arguments->sid = arg;
+      break;
+    case ARGP_KEY_ARG:
+      arguments->msg = arg;
+      break;
     default:
-      print_usage();
-      return 1;
-    case 1:
-      get_msg();
-      break;
-    case 2:
-      if (!strcmp(argv[1],"-h")) {
-	print_usage();
-	return 0;
-      }
-      msg = argv[1];
-      break;
-    case 3:
-      if (strcmp(argv[1],"-s")) {
-	print_usage();
-	return 1;
-      }
-      if (get_sid(argv[2]))
-	return 1;
-      get_msg();
-      break;
-    case 4:
-      if (!strcmp(argv[1],"-s")) {
-	if (get_sid(argv[2]))
-	  return 1;
-	msg = argv[3];
-      } else if (!strcmp(argv[2],"-s")) {
-	if (get_sid(argv[3]))
-	  return 1;
-	msg = argv[1];
-      } else {
-	print_usage();
-	return 1;
-      }
+      return ARGP_ERR_UNKNOWN;
   }
+  return 0;
+}
+
+int sign(const char *sid, 
+	 size_t sid_len,
+	 const char *msg,
+	 size_t msg_len) {
+  
+  keyring_identity *new_ident;
   
   int msg_length = strlen(msg);
   
@@ -75,9 +59,9 @@ int main ( int argc, char *argv[] ) {
     //create new sid
     int c;
     for(c=0;c<keyring->context_count;c++) { // cycle through the keyring contexts until we find one with room for another identity
-	new_ident = keyring_create_identity(keyring,keyring->contexts[c], KEYRING_PIN); // create new Serval identity
-	if (new_ident)
-	  break;
+      new_ident = keyring_create_identity(keyring,keyring->contexts[c], KEYRING_PIN); // create new Serval identity
+      if (new_ident)
+	break;
     }
     if (!new_ident) {
       fprintf(stderr, "failed to create new SID\n");
@@ -110,37 +94,44 @@ int main ( int argc, char *argv[] ) {
   printf("%s\n",sid);
   
   keyring_free(keyring);
-  if (need_cleanup) free(msg);
   
   return success;
-  
 }
 
-int get_sid(unsigned char *str) {
-  if (!str_is_subscriber_id(str)) {
+#ifndef SHARED
+int main ( int argc, char *argv[] ) {
+
+  int need_cleanup = 0;
+
+  const char *argp_program_version = "2.1";
+  static char doc[] = "Serval Sign";
+  static struct argp_option options[] = {
+    {"sid", 's', "SID", 0, "Existing Serval ID (SID) to be used to sign the message. If missing, a new SID will be created to sign the message." },
+    { 0 }
+  };
+  
+  arguments.msg = NULL;
+  arguments.sid = NULL;
+  
+  static struct argp argp = { options, parse_opt, "MESSAGE", doc };
+  
+  argp_parse (&argp, argc, argv, 0, 0, &arguments);
+  
+  if (arguments.sid && !str_is_subscriber_id(arguments.sid)) {
     fprintf(stderr,"Invalid SID\n");
     return 1;
   }
-  sid = str;
-  return 0;
-}
-
-void print_usage() {
-  printf("usage: serval-sign <message> [-s <sid>]\n");
-}
-
-void get_msg() {
-  need_cleanup = 1;
-  char buffer[BUF_SIZE];
-  size_t contentSize = 1; // includes NULL
-  msg = malloc(sizeof(char) * BUF_SIZE);
-  msg[0] = '\0'; // make null-terminated
-  while(fgets(buffer, BUF_SIZE, stdin))
-  {
-    char *old = msg;
-    contentSize += strlen(buffer);
-    msg = realloc(msg, contentSize);
-    strcat(msg, buffer);
+  
+  if (!arguments.msg) {
+    get_msg(&(arguments.msg));
+    need_cleanup = 1;
   }
-  msg[strlen(msg)-1] = '\0';
+    
+ int verdict = sign(arguments.sid,arguments.sid ? strlen(arguments.sid) : 0,arguments.msg,strlen(arguments.msg));
+  
+ if (need_cleanup) free(arguments.msg);
+ 
+ return verdict;
+ 
 }
+#endif

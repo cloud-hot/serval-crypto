@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <poll.h>
+#include <argp.h>
 
 #define HAVE_ARPA_INET_H
 
@@ -8,15 +9,19 @@
 #include <overlay_address.h>
 #include <crypto.h>
 #include <str.h>
+#include <assert.h>
+
+#include "serval-crypto.h"
 
 #define KEYRING_PIN NULL
 #define MAX_SAS_VALIDATION_ATTEMPTS 10
-#define BUF_SIZE 1024
 
-void print_usage();
-int fetch_next_arg(unsigned char **var, char **argv[]);
-void get_msg();
-int need_cleanup = 0;
+static struct arguments {
+  unsigned char *sid;
+  unsigned char *sig;
+  unsigned char *msg;
+  int num_args;
+} arguments;
 
 int keyring_send_sas_request_client(struct subscriber *subscriber){
   int ret, client_port, found = 0;
@@ -150,57 +155,20 @@ int keyring_send_sas_request_client(struct subscriber *subscriber){
   return 0;
 }
 
-int main ( int argc, char *argv[] ) {
-
-  int sas_validation_attempts = 0, num_identities = 0;
-  unsigned char *sid = NULL, *msg = NULL, *sig = NULL;
+int verify(const char *sid, 
+	   size_t sid_len,
+	   const char *msg,
+	   size_t msg_len,
+	   const char *sig,
+	   size_t sig_len) {
   
-  if (argc != 2 && argc != 5 && argc != 7) {
-    print_usage();
-    return 1;
-  }
-  
-  while ((argc > 1) && (argv[1][0] == '-')) {
-    switch (argv[1][1]) {
-      case 'i':
-	if (sid || fetch_next_arg(&sid,&argv)) {
-	  print_usage();
-	  return 1;
-	}
-	break;
-      case 'm':
-	if (msg || fetch_next_arg(&msg,&argv)) {
-	  print_usage();
-	  return 1;
-	}
-	break;
-      case 's':
-	if (sig || fetch_next_arg(&sig,&argv)) {
-	  print_usage();
-	  return 1;
-	}
-	break;
-      default:
-	print_usage();
-	return 1;
-    }
-    ++argv;
-    --argc;--argc;
-  }
-  
-  if (!msg) get_msg(&msg);
-
-  if (!sid || !msg || !sig) {
-    print_usage();
-    return 1;
-  }
-
-  int msg_length = strlen(msg);
+  assert(sid_len == 2*SID_SIZE);
+  assert(sig_len == 2*SIGNATURE_BYTES);
   
   unsigned char bin_sig[SIGNATURE_BYTES];
   int valid_sig = fromhexstr(bin_sig,sig,SIGNATURE_BYTES); // convert signature from hex to binary
   
-  if (strlen(sig) != 2*SIGNATURE_BYTES || valid_sig) {
+  if (valid_sig) {
     fprintf(stderr, "Invalid signature\n");
     return 1;
   }
@@ -208,12 +176,12 @@ int main ( int argc, char *argv[] ) {
     fprintf(stderr,"Invalid SID\n");
     return 1;
   }
-
-  unsigned char combined_msg[msg_length + SIGNATURE_BYTES];
-  memcpy(combined_msg,msg,msg_length);
-  memcpy(combined_msg + msg_length,bin_sig,SIGNATURE_BYTES); // append signature to end of message
-  int combined_msg_length = msg_length + SIGNATURE_BYTES;
-
+  
+  unsigned char combined_msg[msg_len + SIGNATURE_BYTES];
+  memcpy(combined_msg,msg,msg_len);
+  memcpy(combined_msg + msg_len,bin_sig,SIGNATURE_BYTES); // append signature to end of message
+  int combined_msg_length = msg_len + SIGNATURE_BYTES;
+  
   char keyringFile[1024];
   FORM_SERVAL_INSTANCE_PATH(keyringFile, "serval.keyring"); // this should target default Serval keyring
   keyring = keyring_open(keyringFile);
@@ -221,25 +189,25 @@ int main ( int argc, char *argv[] ) {
     fprintf(stderr, "Failed to open Serval keyring\n");
     return 1;
   }
-  num_identities = keyring_enter_pin(keyring, KEYRING_PIN); // unlocks Serval keyring for using identities (also initializes global default identity my_subscriber)
+  int num_identities = keyring_enter_pin(keyring, KEYRING_PIN); // unlocks Serval keyring for using identities (also initializes global default identity my_subscriber)
   if (!num_identities) {
     fprintf(stderr, "Failed to unlock any Serval identities\n");
     return 1;
   }
-
+  
   unsigned char packedSid[SID_SIZE];
   stowSid(packedSid,0,sid);
-
+  
   struct subscriber *src_sub = find_subscriber(packedSid, SID_SIZE, 1); // get Serval identity described by given SID
-
+  
   if (!src_sub) {
     fprintf(stderr, "Failed to fetch Serval subscriber\n");
     return 1;
   }
   
   if (keyring_send_sas_request_client(src_sub)) { // send MDP request for SAS public key of given SID
-      printf("SAS request failed\n");
-      return 1;
+    printf("SAS request failed\n");
+    return 1;
   }
   
   if (!src_sub->sas_valid) {
@@ -255,39 +223,73 @@ int main ( int argc, char *argv[] ) {
   else {
     printf("Message NOT verified\n");
   }
-
-  keyring_free(keyring);
-  if (need_cleanup) free(msg);
   
+  keyring_free(keyring);
+   
   return verdict;
-
+  
 }
 
-void print_usage() {
-  printf("usage: serval-verify -i <sid> -m <message> -s <signature>\n");
-}
-
-int fetch_next_arg(unsigned char **var, char **argv[]) {
-  ++(*argv);
-  if ((*argv)[1][0] == '-') {
-    return 1;
+static error_t parse_opt (int key, char *arg, struct argp_state *state) {
+  struct arguments *arguments = state->input;
+  
+  switch (key) {
+    case 'i':
+      arguments->sid = arg;
+      arguments->num_args++;
+      break;
+    case 'm':
+      arguments->msg = arg;
+      arguments->num_args++;
+      break;
+    case 's':
+      arguments->sig = arg;
+      arguments->num_args++;
+      break;
+    case ARGP_KEY_END:
+      if (arguments->num_args != 3)
+	argp_usage(state);
+      break;
+    default:
+      return ARGP_ERR_UNKNOWN;
   }
-  *var = (*argv)[1];
   return 0;
 }
 
-void get_msg(unsigned char **msg) {
-  need_cleanup = 1;
-  char buffer[BUF_SIZE];
-  size_t contentSize = 1; // includes NULL
-  *msg = malloc(sizeof(char) * BUF_SIZE);
-  (*msg)[0] = '\0'; // make null-terminated
-  while(fgets(buffer, BUF_SIZE, stdin))
-  {
-    char *old = *msg;
-    contentSize += strlen(buffer);
-    *msg = realloc(*msg, contentSize);
-    strcat(*msg, buffer);
+#ifndef SHARED
+int main ( int argc, char *argv[] ) {
+
+  int need_cleanup = 0;
+  
+  const char *argp_program_version = "2.1";
+  static char doc[] = "Serval Verify";
+  static struct argp_option options[] = {
+    {"sid", 'i', "SID", 0, "Serval ID (SID) used to sign the message" },
+    {"msg", 'm', "MESSAGE", 0, "Message that was signed (does not include signature)" },
+    {"sig", 's', "SIGNATURE", 0, "Signature of the message, signed by the given SID" },
+    { 0 }
+  };
+  
+  /* Set defaults */
+  arguments.msg = NULL;
+  arguments.sid = NULL;
+  arguments.sig = NULL;
+  arguments.num_args = 0;
+  
+  static struct argp argp = { options, parse_opt, NULL, doc };
+  
+  argp_parse (&argp, argc, argv, 0, 0, &arguments);
+  
+  if (!arguments.msg) {
+    get_msg(&(arguments.msg));
+    need_cleanup = 1;
   }
-  (*msg)[strlen(*msg)-1] = '\0';
+
+  int verdict = verify(arguments.sid,strlen(arguments.sid),
+		       arguments.msg,strlen(arguments.msg),
+		       arguments.sig,strlen(arguments.sig));
+  if (need_cleanup) free(arguments.msg);
+  return verdict;
+
 }
+#endif
