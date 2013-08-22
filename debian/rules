@@ -13,5 +13,5 @@
 	dh $@ 
 
 override_dh_auto_build:
-	$(MAKE) CFLAGS+=-DHAVE_BCOPY
-	$(MAKE) CFLAGS+=-DHAVE_BCOPY libserval-crypto.so
+	$(MAKE)
+	$(MAKE) libserval-crypto.so
