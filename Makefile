@@ -8,11 +8,11 @@ all: serval-sign serval-verify
 %.o: %.c $(DEPS)
 	$(CC) -DSHARED -fPIC -c -o $@ $< $(CFLAGS)
 
-serval-sign: $(DEPS) $(OBJS)
-	$(CC) $(CFLAGS) -o serval-sign $(OBJS) $(LDFLAGS)
+serval-sign: $(DEPS) serval-sign.c common.c
+	$(CC) $(CFLAGS) -o serval-sign serval-sign.c common.c $(LDFLAGS)
 
-serval-verify: $(DEPS) $(OBJS)
-	$(CC) $(CFLAGS) -o serval-verify $(OBJS) $(LDFLAGS)
+serval-verify: $(DEPS) serval-verify.c common.c
+	$(CC) $(CFLAGS) -o serval-verify serval-verify.c common.c $(LDFLAGS)
 
 libserval-crypto.so: $(DEPS) $(OBJS)
 	$(CC) $(CFLAGS) -shared -o libserval-crypto.so $(OBJS) $(LDFLAGS)

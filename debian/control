@@ -10,5 +10,5 @@ Package: serval-crypto
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Serval-Crypto programs and library
-  Sign and verify arbitrary text with Serval's crypto API.
+ Sign and verify arbitrary text with Serval's crypto API.
 
