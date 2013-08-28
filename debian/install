@@ -1,3 +1,4 @@
 serval-sign /usr/bin
 serval-verify /usr/bin
 libserval-crypto.so /usr/lib
+serval-crypto.h /usr/include
