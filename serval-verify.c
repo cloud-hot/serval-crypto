@@ -253,7 +253,8 @@ static error_t parse_opt (int key, char *arg, struct argp_state *state) {
       arguments->num_args++;
       break;
     case ARGP_KEY_END:
-      if (arguments->num_args != 3)
+      if (arguments->num_args > 3 || arguments->num_args < 2 ||
+	  !arguments->sig || !arguments->sid)
 	argp_usage(state);
       break;
     default:
