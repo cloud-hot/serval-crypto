@@ -17,14 +17,6 @@
 #include "serval-crypto.h"
 
 #define KEYRING_PIN NULL
-#define MAX_SAS_VALIDATION_ATTEMPTS 10
-
-static struct arguments {
-  unsigned char *sid;
-  unsigned char *sig;
-  unsigned char *msg;
-  int num_args;
-} arguments;
 
 int keyring_send_sas_request_client(struct subscriber *subscriber){
   int ret, client_port, found = 0;
@@ -235,68 +227,3 @@ int verify(const char *sid,
   return verdict;
   
 }
-
-static error_t parse_opt (int key, char *arg, struct argp_state *state) {
-  struct arguments *arguments = state->input;
-  
-  switch (key) {
-    case 'i':
-      arguments->sid = arg;
-      arguments->num_args++;
-      break;
-    case 'm':
-      arguments->msg = arg;
-      arguments->num_args++;
-      break;
-    case 's':
-      arguments->sig = arg;
-      arguments->num_args++;
-      break;
-    case ARGP_KEY_END:
-      if (arguments->num_args > 3 || arguments->num_args < 2 ||
-	  !arguments->sig || !arguments->sid)
-	argp_usage(state);
-      break;
-    default:
-      return ARGP_ERR_UNKNOWN;
-  }
-  return 0;
-}
-
-#ifndef SHARED
-int main ( int argc, char *argv[] ) {
-
-  int need_cleanup = 0;
-  
-  const char *argp_program_version = "2.1";
-  static char doc[] = "Serval Verify";
-  static struct argp_option options[] = {
-    {"sid", 'i', "SID", 0, "Serval ID (SID) used to sign the message" },
-    {"msg", 'm', "MESSAGE", 0, "Message that was signed (does not include signature)" },
-    {"sig", 's', "SIGNATURE", 0, "Signature of the message, signed by the given SID" },
-    { 0 }
-  };
-  
-  /* Set defaults */
-  arguments.msg = NULL;
-  arguments.sid = NULL;
-  arguments.sig = NULL;
-  arguments.num_args = 0;
-  
-  static struct argp argp = { options, parse_opt, NULL, doc };
-  
-  argp_parse (&argp, argc, argv, 0, 0, &arguments);
-  
-  if (!arguments.msg) {
-    get_msg(&(arguments.msg));
-    need_cleanup = 1;
-  }
-
-  int verdict = verify(arguments.sid,strlen(arguments.sid),
-		       arguments.msg,strlen(arguments.msg),
-		       arguments.sig,strlen(arguments.sig));
-  if (need_cleanup) free(arguments.msg);
-  return verdict;
-
-}
-#endif
