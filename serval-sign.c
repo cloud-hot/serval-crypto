@@ -126,12 +126,15 @@ int main ( int argc, char *argv[] ) {
     get_msg(&(arguments.msg));
     need_cleanup = 1;
   }
-    
- int verdict = sign(arguments.sid,arguments.sid ? strlen(arguments.sid) : 0,arguments.msg,strlen(arguments.msg));
   
- if (need_cleanup) free(arguments.msg);
+  DEBUG("Message to sign:");
+  DEBUG("\n%s",arguments.msg);
+  
+  int verdict = sign(arguments.sid,arguments.sid ? strlen(arguments.sid) : 0,arguments.msg,strlen(arguments.msg));
+  
+  if (need_cleanup) free(arguments.msg);
  
- return verdict;
+  return verdict;
  
 }
 #endif
