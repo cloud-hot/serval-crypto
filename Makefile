@@ -16,7 +16,7 @@ libserval-crypto.so: $(DEPS) $(OBJS)
 	$(CC) $(CFLAGS) -shared -o $(LIBNAME) $(OBJS) $(LDFLAGS)
 
 serval-crypto: $(DEPS) $(OBJS) main.c $(LIBNAME)
-	$(CC) $(CFLAGS) -o $(EXENAME) main.c -L./ -lserval-crypto
+	$(CC) $(CFLAGS) -o $(EXENAME) main.c -L./ -lserval-crypto $(LDFLAGS)
 
 static: $(DEPS) $(OBJS) main.c
 	$(CC) $(CFLAGS) -o $(EXENAME) main.c serval-sign.c serval-verify.c common.c $(LDFLAGS)
