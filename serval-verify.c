@@ -2,6 +2,9 @@
 #include <string.h>
 #include <poll.h>
 #include <argp.h>
+#ifdef USESYSLOG
+#include <syslog.h>
+#endif
 
 #define HAVE_ARPA_INET_H
 
@@ -214,6 +217,9 @@ int verify(const char *sid,
     fprintf(stderr, "Could not validate the signing key!\n");
     return 1;
   }
+  
+  DEBUG("Message to verify:");
+  DEBUG("\n%s",msg);
   
   int verdict = crypto_verify_message(src_sub, combined_msg, &combined_msg_length);
   

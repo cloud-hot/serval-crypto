@@ -1,22 +1,20 @@
 LDFLAGS+=-lservald
-CFLAGS+=-I../serval-dna -I../serval-dna/nacl/include -g
-OBJS=serval-sign.o serval-verify.o
+CFLAGS+=-I../serval-dna -I../serval-dna/nacl/include -g -DHAVE_BCOPY
+OBJS=serval-sign.o serval-verify.o common.o
+DEPS=Makefile serval-crypto.h
 
 all: serval-sign serval-verify
 
-serval-sign: Makefile sign.c serval-crypto.h
-	$(CC) $(CFLAGS) -o serval-sign sign.c common.c $(LDFLAGS)
+%.o: %.c $(DEPS)
+	$(CC) -DSHARED -fPIC -c -o $@ $< $(CFLAGS)
 
-serval-verify: Makefile verify.c serval-crypto.h
-	$(CC) $(CFLAGS) -o serval-verify verify.c common.c $(LDFLAGS)
+serval-sign: $(DEPS) serval-sign.c common.c
+	$(CC) $(CFLAGS) -o serval-sign serval-sign.c common.c $(LDFLAGS)
 
-serval-sign.o: Makefile sign.c
-	$(CC) $(CFLAGS) -DSHARED -fPIC -c -o serval-sign.o sign.c
+serval-verify: $(DEPS) serval-verify.c common.c
+	$(CC) $(CFLAGS) -o serval-verify serval-verify.c common.c $(LDFLAGS)
 
-serval-verify.o: Makefile verify.c
-	$(CC) $(CFLAGS) -DSHARED -fPIC -c -o serval-verify.o verify.c
-
-libserval-crypto.so: Makefile serval-verify.o serval-sign.o
+libserval-crypto.so: $(DEPS) $(OBJS)
 	$(CC) $(CFLAGS) -shared -o libserval-crypto.so $(OBJS) $(LDFLAGS)
 
 clean:
