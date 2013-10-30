@@ -37,7 +37,8 @@ void print_usage() {
 }
 
 int main ( int argc, char *argv[] ) {
-  char *msg = NULL, *sid = NULL, *sig = NULL;
+  unsigned char *msg = NULL;
+  char *sid = NULL, *sig = NULL;
   int c, need_cleanup = 0, verdict = -1;
   
   while (1) {

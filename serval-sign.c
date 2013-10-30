@@ -77,10 +77,10 @@ int serval_sign(const char *sid,
     printf("%s\n", alloca_tohex(signed_msg + msg_length, sig_length));
     printf("%s\n",sid);
     if (sig_size > 0)
-      if (sig_size >= sig_length + 1)
-        strncpy(sig_buffer,signed_msg + msg_length,sig_length);
-        sig_buffer[sig_length] = '\0';
-      else
+      if (sig_size >= 2*sig_length + 1) {
+        strncpy(sig_buffer,alloca_tohex(signed_msg + msg_length,sig_length),2*sig_length);
+        sig_buffer[2*sig_length] = '\0';
+      } else
 	fprintf(stderr,"Insufficient signature buffer size\n");
   }
   
