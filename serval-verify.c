@@ -18,7 +18,7 @@
 
 #define KEYRING_PIN NULL
 
-int keyring_send_sas_request_client(struct subscriber *subscriber){
+static int keyring_send_sas_request_client(struct subscriber *subscriber){
   int ret, client_port, found = 0;
   unsigned char srcsid[SID_SIZE];
   time_ms_t now = gettime_ms();
@@ -150,7 +150,7 @@ int keyring_send_sas_request_client(struct subscriber *subscriber){
   return 0;
 }
 
-int verify(const char *sid, 
+int serval_verify(const char *sid, 
 	   size_t sid_len,
 	   const char *msg,
 	   size_t msg_len,

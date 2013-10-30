@@ -18,7 +18,7 @@ extern keyring_file *keyring; // keyring is global Serval variable
 
 // static int get_sid(unsigned char *str, unsigned char **sid);
 
-int sign(const char *sid, 
+int serval_sign(const char *sid, 
 	 size_t sid_len,
 	 const char *msg,
 	 size_t msg_len,

@@ -92,9 +92,9 @@ int main ( int argc, char *argv[] ) {
   }
   
   if (command == SIGN) {
-    verdict = sign(sid,sid ? strlen(sid) : 0,msg,strlen(msg),NULL,0);
+    verdict = serval_sign(sid,sid ? strlen(sid) : 0,msg,strlen(msg),NULL,0);
   } else { // VERIFY
-    verdict = verify(sid,strlen(sid),
+    verdict = serval_verify(sid,strlen(sid),
 		     msg,strlen(msg),
 		     sig,strlen(sig));
   }
