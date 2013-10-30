@@ -92,7 +92,7 @@ int main ( int argc, char *argv[] ) {
   }
   
   if (command == SIGN) {
-    verdict = sign(sid,sid ? strlen(sid) : 0,msg,strlen(msg));
+    verdict = sign(sid,sid ? strlen(sid) : 0,msg,strlen(msg),NULL,0);
   } else { // VERIFY
     verdict = verify(sid,strlen(sid),
 		     msg,strlen(msg),

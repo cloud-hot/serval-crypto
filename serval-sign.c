@@ -21,7 +21,9 @@ extern keyring_file *keyring; // keyring is global Serval variable
 int sign(const char *sid, 
 	 size_t sid_len,
 	 const char *msg,
-	 size_t msg_len) {
+	 size_t msg_len,
+	 char *sig_buffer,
+	 size_t sig_size) {
   
   keyring_identity *new_ident;
   int msg_length = strlen(msg);
@@ -69,12 +71,19 @@ int sign(const char *sid,
   unsigned char signed_msg[msg_length + sig_length];
   strncpy(signed_msg,msg,msg_length);
   
-  int success = crypto_create_signature(key, hash, crypto_hash_sha512_BYTES, &signed_msg[msg_length], &sig_length); // create signature of message hash, append it to end of message
+  int ret = crypto_create_signature(key, hash, crypto_hash_sha512_BYTES, &signed_msg[msg_length], &sig_length); // create signature of message hash, append it to end of message
   
-  printf("%s\n", alloca_tohex(signed_msg + msg_length, sig_length));
-  printf("%s\n",sid);
+  if (!ret) { //success
+    printf("%s\n", alloca_tohex(signed_msg + msg_length, sig_length));
+    printf("%s\n",sid);
+    if (sig_size > 0)
+      if (sig_size >= sig_length)
+	strncpy(sig_buffer,signed_msg + msg_length,sig_length);
+      else
+	fprintf(stderr,"Insufficient signature buffer size\n");
+  }
   
   keyring_free(keyring);
   
-  return success;
+  return ret;
 }
