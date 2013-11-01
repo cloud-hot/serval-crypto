@@ -9,6 +9,7 @@
 #include <crypto.h>
 #include <str.h>
 #include <argp.h>
+#include <assert.h>
 
 #include "serval-crypto.h"
 
