@@ -16,8 +16,6 @@
 
 extern keyring_file *keyring; // keyring is global Serval variable
 
-// static int get_sid(unsigned char *str, unsigned char **sid);
-
 int serval_sign(const char *sid, 
 	 size_t sid_len,
 	 const char *msg,
@@ -26,8 +24,9 @@ int serval_sign(const char *sid,
 	 size_t sig_size) {
   
   keyring_identity *new_ident;
-  int msg_length = strlen(msg);
   char keyringFile[1024];
+  
+  assert(msg_len);
   
   FORM_SERVAL_INSTANCE_PATH(keyringFile, "serval.keyring"); // this should target default Serval keyring
   keyring = keyring_open(keyringFile);
@@ -66,19 +65,19 @@ int serval_sign(const char *sid,
   
   unsigned char hash[crypto_hash_sha512_BYTES]; 
   unsigned long long sig_length = SIGNATURE_BYTES;
-  crypto_hash_sha512(hash, msg, msg_length); // create sha512 hash of message, which will then be signed
+  crypto_hash_sha512(hash, msg, msg_len); // create sha512 hash of message, which will then be signed
   
-  unsigned char signed_msg[msg_length + sig_length];
-  strncpy(signed_msg,msg,msg_length);
+  unsigned char signed_msg[msg_len + sig_length];
+  strncpy(signed_msg,msg,msg_len);
   
-  int ret = crypto_create_signature(key, hash, crypto_hash_sha512_BYTES, &signed_msg[msg_length], &sig_length); // create signature of message hash, append it to end of message
+  int ret = crypto_create_signature(key, hash, crypto_hash_sha512_BYTES, &signed_msg[msg_len], &sig_length); // create signature of message hash, append it to end of message
   
   if (!ret) { //success
-    printf("%s\n", alloca_tohex(signed_msg + msg_length, sig_length));
+    printf("%s\n", alloca_tohex(signed_msg + msg_len, sig_length));
     printf("%s\n",sid);
     if (sig_size > 0)
       if (sig_size >= 2*sig_length + 1) {
-        strncpy(sig_buffer,alloca_tohex(signed_msg + msg_length,sig_length),2*sig_length);
+        strncpy(sig_buffer,alloca_tohex(signed_msg + msg_len,sig_length),2*sig_length);
         sig_buffer[2*sig_length] = '\0';
       } else
 	fprintf(stderr,"Insufficient signature buffer size\n");
