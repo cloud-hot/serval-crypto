@@ -9,6 +9,7 @@
 #include <crypto.h>
 #include <str.h>
 #include <argp.h>
+#include <assert.h>
 
 #include "serval-crypto.h"
 
@@ -16,41 +17,18 @@
 
 extern keyring_file *keyring; // keyring is global Serval variable
 
-static int get_sid(unsigned char *str, unsigned char **sid);
-
-static struct arguments {
-  unsigned char *sid;
-  unsigned char *msg;
-} arguments;
-
-static error_t parse_opt (int key, char *arg, struct argp_state *state) {
-  struct arguments *arguments = state->input;
-  if (state->arg_num > 0)
-    return ARGP_ERR_UNKNOWN;
-  
-  switch (key) {
-    case 's':
-      arguments->sid = arg;
-      break;
-    case ARGP_KEY_ARG:
-      arguments->msg = arg;
-      break;
-    default:
-      return ARGP_ERR_UNKNOWN;
-  }
-  return 0;
-}
-
-int sign(const char *sid, 
+int serval_sign(const char *sid, 
 	 size_t sid_len,
 	 const char *msg,
-	 size_t msg_len) {
+	 size_t msg_len,
+	 char *sig_buffer,
+	 size_t sig_size) {
   
   keyring_identity *new_ident;
-  
-  int msg_length = strlen(msg);
-  
   char keyringFile[1024];
+  
+  assert(msg_len);
+  
   FORM_SERVAL_INSTANCE_PATH(keyringFile, "serval.keyring"); // this should target default Serval keyring
   keyring = keyring_open(keyringFile);
   int num_identities = keyring_enter_pin(keyring, KEYRING_PIN); // unlocks Serval keyring for using identities (also initializes global default identity my_subscriber)
@@ -72,6 +50,11 @@ int sign(const char *sid,
       return 1;
     }
     sid = alloca_tohex_sid(new_ident->subscriber->sid); // convert SID from binary to hex
+  } else {
+    if (!str_is_subscriber_id(sid)) {
+      fprintf(stderr,"Invalid SID\n");
+      return 1;
+    }
   }
   
   unsigned char packedSid[SID_SIZE];
@@ -83,58 +66,25 @@ int sign(const char *sid,
   
   unsigned char hash[crypto_hash_sha512_BYTES]; 
   unsigned long long sig_length = SIGNATURE_BYTES;
-  crypto_hash_sha512(hash, msg, msg_length); // create sha512 hash of message, which will then be signed
+  crypto_hash_sha512(hash, msg, msg_len); // create sha512 hash of message, which will then be signed
   
-  unsigned char signed_msg[msg_length + sig_length];
-  strncpy(signed_msg,msg,msg_length);
+  unsigned char signed_msg[msg_len + sig_length];
+  strncpy(signed_msg,msg,msg_len);
   
-  int success = crypto_create_signature(key, hash, crypto_hash_sha512_BYTES, &signed_msg[msg_length], &sig_length); // create signature of message hash, append it to end of message
+  int ret = crypto_create_signature(key, hash, crypto_hash_sha512_BYTES, &signed_msg[msg_len], &sig_length); // create signature of message hash, append it to end of message
   
-  printf("%s\n", alloca_tohex(signed_msg + msg_length, sig_length));
-  printf("%s\n",sid);
+  if (!ret) { //success
+    printf("%s\n", alloca_tohex(signed_msg + msg_len, sig_length));
+    printf("%s\n",sid);
+    if (sig_size > 0)
+      if (sig_size >= 2*sig_length + 1) {
+        strncpy(sig_buffer,alloca_tohex(signed_msg + msg_len,sig_length),2*sig_length);
+        sig_buffer[2*sig_length] = '\0';
+      } else
+	fprintf(stderr,"Insufficient signature buffer size\n");
+  }
   
   keyring_free(keyring);
   
-  return success;
+  return ret;
 }
-
-#ifndef SHARED
-int main ( int argc, char *argv[] ) {
-
-  int need_cleanup = 0;
-
-  const char *argp_program_version = "2.1";
-  static char doc[] = "Serval Sign";
-  static struct argp_option options[] = {
-    {"sid", 's', "SID", 0, "Existing Serval ID (SID) to be used to sign the message. If missing, a new SID will be created to sign the message." },
-    { 0 }
-  };
-  
-  arguments.msg = NULL;
-  arguments.sid = NULL;
-  
-  static struct argp argp = { options, parse_opt, "MESSAGE", doc };
-  
-  argp_parse (&argp, argc, argv, 0, 0, &arguments);
-  
-  if (arguments.sid && !str_is_subscriber_id(arguments.sid)) {
-    fprintf(stderr,"Invalid SID\n");
-    return 1;
-  }
-  
-  if (!arguments.msg) {
-    get_msg(&(arguments.msg));
-    need_cleanup = 1;
-  }
-  
-  DEBUG("Message to sign:");
-  DEBUG("\n%s",arguments.msg);
-  
-  int verdict = sign(arguments.sid,arguments.sid ? strlen(arguments.sid) : 0,arguments.msg,strlen(arguments.msg));
-  
-  if (need_cleanup) free(arguments.msg);
- 
-  return verdict;
- 
-}
-#endif
