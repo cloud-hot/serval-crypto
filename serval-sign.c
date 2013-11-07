@@ -19,6 +19,7 @@ extern keyring_file *keyring; // keyring is global Serval variable
 
 int serval_sign(const char *sid, 
 	 size_t sid_len,
+	 char *keyringName,
 	 const char *msg,
 	 size_t msg_len,
 	 char *sig_buffer,
@@ -29,7 +30,13 @@ int serval_sign(const char *sid,
   
   assert(msg_len);
   
-  FORM_SERVAL_INSTANCE_PATH(keyringFile, "serval.keyring"); // this should target default Serval keyring
+  if (keyringName == NULL) { 
+    FORM_SERVAL_INSTANCE_PATH(keyringFile, "serval.keyring"); // if no keyring specified, use default keyring
+  }
+  else { // otherwise, use specified keyring (NOTE: if keyring does not exist, it will be created)
+    FORM_SERVAL_INSTANCE_PATH(keyringFile, keyringName); 
+  }
+  
   keyring = keyring_open(keyringFile);
   int num_identities = keyring_enter_pin(keyring, KEYRING_PIN); // unlocks Serval keyring for using identities (also initializes global default identity my_subscriber)
   

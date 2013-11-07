@@ -15,7 +15,7 @@
 
 void get_msg(unsigned char **msg);
 
-int serval_sign(const char *sid, size_t sid_len, const char *msg, size_t msg_len, char *sig_buffer, size_t sig_size);
+int serval_sign(const char *sid, size_t sid_len, char *keyringName, const char *msg, size_t msg_len, char *sig_buffer, size_t sig_size);
 
 int serval_verify(const char *sid,size_t sid_len,const char *msg,size_t msg_len,const char *sig,size_t sig_len);
 

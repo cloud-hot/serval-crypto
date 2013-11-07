@@ -30,6 +30,7 @@ void print_usage() {
     "      --sign                    Sign a message with a Serval key\n"
     "      --verify                  Verify a signed message with a Serval key\n\n"
     "Options:\n\n"
+    "  -k, --keyring	      	      Keyring file (if none specified, will use default serval.keyring)\n"
     "  -m, --message                 Message to sign or verify (not including signature)\n"
     "  -i, --sid                     Serval ID (SID) used to sign or verify. If a SID is not provided\n"
     "                                     when signing a message, a new SID is created.\n"
@@ -37,6 +38,7 @@ void print_usage() {
 }
 
 int main ( int argc, char *argv[] ) {
+  unsigned char *keyringName = NULL;
   unsigned char *msg = NULL;
   char *sid = NULL, *sig = NULL;
   int c, need_cleanup = 0, verdict = -1;
@@ -47,6 +49,8 @@ int main ( int argc, char *argv[] ) {
       {"verify",	no_argument, &command, VERIFY},
       {"help",		no_argument, 0, 'h'},
       
+      {"keyring",	required_argument, 0, 'k'},
+      
       {"message",	required_argument, 0, 'm'},
       {"sid",		required_argument, 0, 'i'},
       {"signature",	required_argument, 0, 's'},
@@ -54,13 +58,16 @@ int main ( int argc, char *argv[] ) {
     };
     
     int op_index = 0;
-    c = getopt_long(argc,argv,"m:i:s:", long_options, &op_index);
+    c = getopt_long(argc,argv,"k:m:i:s:", long_options, &op_index);
     
     if (c == -1)
       break;
     
     switch (c) {
       case 0:
+	break;
+      case 'k':
+	keyringName = optarg;
 	break;
       case 'm':
 	msg = optarg;
@@ -93,7 +100,7 @@ int main ( int argc, char *argv[] ) {
   }
   
   if (command == SIGN) {
-    verdict = serval_sign(sid,sid ? strlen(sid) : 0,msg,strlen(msg),NULL,0);
+    verdict = serval_sign(sid,sid ? strlen(sid) : 0,keyringName,msg,strlen(msg),NULL,0);
   } else { // VERIFY
     verdict = serval_verify(sid,strlen(sid),
 		     msg,strlen(msg),
