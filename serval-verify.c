@@ -152,6 +152,7 @@ static int keyring_send_sas_request_client(struct subscriber *subscriber){
 
 int serval_verify(const char *sid, 
 	   size_t sid_len,
+	   char *keyringName,
 	   const char *msg,
 	   size_t msg_len,
 	   const char *sig,
@@ -178,7 +179,14 @@ int serval_verify(const char *sid,
   int combined_msg_length = msg_len + SIGNATURE_BYTES;
   
   char keyringFile[1024];
-  FORM_SERVAL_INSTANCE_PATH(keyringFile, "serval.keyring"); // this should target default Serval keyring
+  
+  if (keyringName == NULL) { 
+    FORM_SERVAL_INSTANCE_PATH(keyringFile, "serval.keyring"); // if no keyring specified, use default keyring
+  }
+  else { // otherwise, use specified keyring (NOTE: if keyring does not exist, it will be created)
+    FORM_SERVAL_INSTANCE_PATH(keyringFile, keyringName); 
+  }
+  
   keyring = keyring_open(keyringFile);
   if (!keyring) {
     fprintf(stderr, "Failed to open Serval keyring\n");

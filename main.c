@@ -30,7 +30,7 @@ void print_usage() {
     "      --sign                    Sign a message with a Serval key\n"
     "      --verify                  Verify a signed message with a Serval key\n\n"
     "Options:\n\n"
-    "  -k, --keyring	      	      Keyring file (if none specified, will use default serval.keyring)\n"
+    "  -k, --keyring                 Keyring file (if none specified, will use default serval.keyring)\n"
     "  -m, --message                 Message to sign or verify (not including signature)\n"
     "  -i, --sid                     Serval ID (SID) used to sign or verify. If a SID is not provided\n"
     "                                     when signing a message, a new SID is created.\n"
@@ -50,7 +50,6 @@ int main ( int argc, char *argv[] ) {
       {"help",		no_argument, 0, 'h'},
       
       {"keyring",	required_argument, 0, 'k'},
-      
       {"message",	required_argument, 0, 'm'},
       {"sid",		required_argument, 0, 'i'},
       {"signature",	required_argument, 0, 's'},
@@ -103,6 +102,7 @@ int main ( int argc, char *argv[] ) {
     verdict = serval_sign(sid,sid ? strlen(sid) : 0,keyringName,msg,strlen(msg),NULL,0);
   } else { // VERIFY
     verdict = serval_verify(sid,strlen(sid),
+		     keyringName,
 		     msg,strlen(msg),
 		     sig,strlen(sig));
   }

@@ -38,6 +38,7 @@ int serval_sign(const char *sid,
   }
   
   keyring = keyring_open(keyringFile);
+  
   int num_identities = keyring_enter_pin(keyring, KEYRING_PIN); // unlocks Serval keyring for using identities (also initializes global default identity my_subscriber)
   
   if (!sid) {
