@@ -1,5 +1,3 @@
-// ***** TODO DONT FORGET TO CHANGE ARGP DEPENDENCY IN COMMOTOIN-FEED ****
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,8 +10,10 @@
 
 #include "serval-crypto.h"
 
-#define SIGN 0
-#define VERIFY 1
+enum {
+  SIGN = 0,
+  VERIFY = 1
+};
 
 static int command = -1;
 
@@ -30,18 +30,18 @@ void print_usage() {
     "      --sign                    Sign a message with a Serval key\n"
     "      --verify                  Verify a signed message with a Serval key\n\n"
     "Options:\n\n"
-    "  -k, --keyring                 Keyring file (if none specified, will use default serval.keyring)\n"
     "  -m, --message                 Message to sign or verify (not including signature)\n"
     "  -i, --sid                     Serval ID (SID) used to sign or verify. If a SID is not provided\n"
     "                                     when signing a message, a new SID is created.\n"
-    "  -s, --signature               Signature of message to verify\n\n");
+    "  -s, --signature               Signature of message to verify\n"
+    "  -k, --keyring                 Keyring file (When verifying message, there must be a running\n"
+    "                                     servald instance using this keyring)\n\n");
 }
 
 int main ( int argc, char *argv[] ) {
-  unsigned char *keyringName = NULL;
   unsigned char *msg = NULL;
-  char *sid = NULL, *sig = NULL;
-  int c, need_cleanup = 0, verdict = -1;
+  char *sid = NULL, *sig = NULL, *keyringName = NULL;
+  int c, need_cleanup = 0, verdict = -1, msg_len = 0;
   
   while (1) {
     static struct option long_options[] = {
@@ -69,7 +69,8 @@ int main ( int argc, char *argv[] ) {
 	keyringName = optarg;
 	break;
       case 'm':
-	msg = optarg;
+	msg = (unsigned char*)optarg;
+	msg_len = strlen(optarg);
 	break;
       case 'i':
 	sid = optarg;
@@ -94,17 +95,20 @@ int main ( int argc, char *argv[] ) {
   }
   
   if (!msg) {
-    get_msg(&msg);
+    get_msg((char **)&msg);
     need_cleanup = 1;
   }
   
   if (command == SIGN) {
-    verdict = serval_sign(sid,sid ? strlen(sid) : 0,keyringName,msg,strlen(msg),NULL,0);
+    verdict = serval_sign(sid,sid ? strlen(sid) : 0,
+		     msg,msg_len,
+		     NULL,0,
+		     keyringName,keyringName ? strlen(keyringName) : 0);
   } else { // VERIFY
     verdict = serval_verify(sid,strlen(sid),
-		     keyringName,
-		     msg,strlen(msg),
-		     sig,strlen(sig));
+		     msg,msg_len,
+		     sig,strlen(sig),
+		     keyringName,keyringName ? strlen(keyringName) : 0);
   }
   
   if (need_cleanup) free(msg);

@@ -13,33 +13,33 @@
 
 #include "serval-crypto.h"
 
-#define KEYRING_PIN NULL
-
 extern keyring_file *keyring; // keyring is global Serval variable
 
 int serval_sign(const char *sid, 
-	 size_t sid_len,
-	 char *keyringName,
-	 const char *msg,
-	 size_t msg_len,
+	 const size_t sid_len,
+	 const unsigned char *msg,
+	 const size_t msg_len,
 	 char *sig_buffer,
-	 size_t sig_size) {
+	 const size_t sig_size,
+	 const char *keyringName,
+	 const size_t keyring_len) {
   
   keyring_identity *new_ident;
   char keyringFile[1024];
   
   assert(msg_len);
+  if (sid) assert(sid_len == 2*SID_SIZE);
   
-  if (keyringName == NULL) { 
+  if (keyringName == NULL || keyring_len == 0) { 
     FORM_SERVAL_INSTANCE_PATH(keyringFile, "serval.keyring"); // if no keyring specified, use default keyring
   }
   else { // otherwise, use specified keyring (NOTE: if keyring does not exist, it will be created)
-    FORM_SERVAL_INSTANCE_PATH(keyringFile, keyringName); 
+    strncpy(keyringFile,keyringName,keyring_len);
+    keyringFile[keyring_len] = '\0';
   }
   
   keyring = keyring_open(keyringFile);
-  
-  int num_identities = keyring_enter_pin(keyring, KEYRING_PIN); // unlocks Serval keyring for using identities (also initializes global default identity my_subscriber)
+  keyring_enter_pin(keyring, KEYRING_PIN); // unlocks Serval keyring for using identities (also initializes global default identity my_subscriber)
   
   if (!sid) {
     //create new sid
@@ -66,7 +66,7 @@ int serval_sign(const char *sid,
   }
   
   unsigned char packedSid[SID_SIZE];
-  int x = stowSid(packedSid,0,sid);
+  stowSid(packedSid,0,sid);
   
   unsigned char *key=keyring_find_sas_private(keyring, packedSid, NULL); // get SAS key associated with our SID
   if (!key)
@@ -77,19 +77,20 @@ int serval_sign(const char *sid,
   crypto_hash_sha512(hash, msg, msg_len); // create sha512 hash of message, which will then be signed
   
   unsigned char signed_msg[msg_len + sig_length];
-  strncpy(signed_msg,msg,msg_len);
+  memcpy(signed_msg,msg,msg_len);
   
   int ret = crypto_create_signature(key, hash, crypto_hash_sha512_BYTES, &signed_msg[msg_len], &sig_length); // create signature of message hash, append it to end of message
   
   if (!ret) { //success
     printf("%s\n", alloca_tohex(signed_msg + msg_len, sig_length));
     printf("%s\n",sid);
-    if (sig_size > 0)
+    if (sig_size > 0) {
       if (sig_size >= 2*sig_length + 1) {
         strncpy(sig_buffer,alloca_tohex(signed_msg + msg_len,sig_length),2*sig_length);
         sig_buffer[2*sig_length] = '\0';
       } else
 	fprintf(stderr,"Insufficient signature buffer size\n");
+    }
   }
   
   keyring_free(keyring);
