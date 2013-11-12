@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <poll.h>
-#include <argp.h>
 #ifdef USESYSLOG
 #include <syslog.h>
 #endif
