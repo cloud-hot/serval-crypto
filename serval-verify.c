@@ -15,37 +15,32 @@
 
 #include "serval-crypto.h"
 
-#define KEYRING_PIN NULL
+extern keyring_file *keyring; // keyring is global Serval variable
 
 static int keyring_send_sas_request_client(struct subscriber *subscriber){
-  int ret, client_port, found = 0;
-  unsigned char srcsid[SID_SIZE];
+  int sent, client_port, found = 0, ret = -1;
+  int siglen=SID_SIZE+crypto_sign_edwards25519sha512batch_BYTES;
+  unsigned char *srcsid[SID_SIZE], *plain = NULL;
+  unsigned char signature[siglen];
   time_ms_t now = gettime_ms();
   
-  if (overlay_mdp_getmyaddr(0,srcsid)) {
-    printf("Could not get local address");
-    return 1;
-  }
+  bzero(srcsid,SID_SIZE);
+  
+  CHECK(overlay_mdp_getmyaddr(0,(sid_t *)srcsid) == 0,"Could not get local address");
 
   if (subscriber->sas_valid)
     return 0;
   
   if (now < subscriber->sas_last_request + 100){
-    printf("Too soon to ask for SAS mapping again\n");
+    DEBUG("Too soon to ask for SAS mapping again");
     return 0;
   }
   
-  if (!my_subscriber) {
-    printf("couldn't request SAS (I don't know who I am)\n");
-    return 1;
-  }
+  CHECK(my_subscriber,"couldn't request SAS (I don't know who I am)");
   
-  printf("Requesting SAS mapping for SID=%s\n", alloca_tohex_sid(subscriber->sid));
+  DEBUG("Requesting SAS mapping for SID=%s", alloca_tohex_sid(subscriber->sid));
   
-  if (overlay_mdp_bind(my_subscriber->sid,(client_port=32768+(random()&32767)))) {
-    printf("Failed to bind to client socket\n");
-    return 1;
-  }
+  CHECK(overlay_mdp_bind((sid_t *)my_subscriber->sid,(client_port=32768+(random()&32767))) == 0,"Failed to bind to client socket");
 
 /* request mapping (send request auth-crypted). */
   overlay_mdp_frame mdp;
@@ -60,15 +55,12 @@ static int keyring_send_sas_request_client(struct subscriber *subscriber){
   mdp.out.payload_length=1;
   mdp.out.payload[0]=KEYTYPE_CRYPTOSIGN;
   
-  ret = overlay_mdp_send(&mdp, 0,0);
-  if (ret) {
-    printf("Failed to send SAS resolution request: %d\n", ret);
+  sent = overlay_mdp_send(&mdp, 0,0);
+  if (sent) {
+    DEBUG("Failed to send SAS resolution request: %d", sent);
     if (mdp.packetTypeAndFlags==MDP_ERROR)
-	{
-	  printf("  MDP Server error #%d: '%s'\n",
-	       mdp.error.error,mdp.error.message);
-	}
-    return 1;
+      ERROR("  MDP Server error #%d: '%s'",mdp.error.error,mdp.error.message);
+    goto error;
   }
   
   time_ms_t timeout = now + 5000;
@@ -82,17 +74,17 @@ static int keyring_send_sas_request_client(struct subscriber *subscriber){
       if (overlay_mdp_recv(&mdp, client_port, &ttl)==0) {
 	switch(mdp.packetTypeAndFlags&MDP_TYPE_MASK) {
 	  case MDP_ERROR:
-	    printf("overlay_mdp_recv: %s (code %d)\n", mdp.error.message, mdp.error.error);
+	    ERROR("overlay_mdp_recv: %s (code %d)", mdp.error.message, mdp.error.error);
 	    break;
 	  case MDP_TX:
 	  {
-	    printf("Received SAS mapping response\n");
+	    DEBUG("Received SAS mapping response");
 	    found = 1;
 	    break;
 	  }
 	  break;
 	  default:
-	    printf("overlay_mdp_recv: Unexpected MDP frame type 0x%x\n", mdp.packetTypeAndFlags);
+	    DEBUG("overlay_mdp_recv: Unexpected MDP frame type 0x%x", mdp.packetTypeAndFlags);
 	    break;
 	}
 	if (found) break;
@@ -105,22 +97,15 @@ static int keyring_send_sas_request_client(struct subscriber *subscriber){
 
   unsigned keytype = mdp.out.payload[0];
   
-  if (keytype!=KEYTYPE_CRYPTOSIGN) {
-    printf("Ignoring SID:SAS mapping with unsupported key type %u\n", keytype);
-    return 1;
-  }
+  CHECK(keytype == KEYTYPE_CRYPTOSIGN,"Ignoring SID:SAS mapping with unsupported key type %u", keytype);
   
-  if (mdp.out.payload_length < 1 + SAS_SIZE) {
-    printf("Truncated key mapping announcement? payload_length: %d\n", mdp.out.payload_length);
-    return 1;
-  }
+  CHECK(mdp.out.payload_length >= 1 + SAS_SIZE,"Truncated key mapping announcement? payload_length: %d", mdp.out.payload_length);
   
-  unsigned char plain[mdp.out.payload_length];
+  plain = (unsigned char*)malloc(sizeof(unsigned char) * mdp.out.payload_length);
   unsigned long long plain_len=0;
   unsigned char *sas_public=&mdp.out.payload[1];
   unsigned char *compactsignature = &mdp.out.payload[1+SAS_SIZE];
-  int siglen=SID_SIZE+crypto_sign_edwards25519sha512batch_BYTES;
-  unsigned char signature[siglen];
+  
   
   /* reconstitute signed SID for verification */
   bcopy(&compactsignature[0],&signature[0],64);
@@ -129,90 +114,83 @@ static int keyring_send_sas_request_client(struct subscriber *subscriber){
   int r=crypto_sign_edwards25519sha512batch_open(plain,&plain_len,
 						 signature,siglen,
 						 sas_public);
-  if (r) {
-    printf("SID:SAS mapping verification signature does not verify\n");
-    return 1;
-  }
+  CHECK(r == 0,"SID:SAS mapping verification signature does not verify");
+
   /* These next two tests should never be able to fail, but let's just check anyway. */
-  if (plain_len != SID_SIZE) {
-    printf("SID:SAS mapping signed block is wrong length\n");
-    return 1;
-  }
-  if (memcmp(plain, mdp.out.src.sid, SID_SIZE) != 0) {
-    printf("SID:SAS mapping signed block is for wrong SID\n");
-    return 1;
-  }
+  CHECK(plain_len == SID_SIZE,"SID:SAS mapping signed block is wrong length");
+  CHECK(memcmp(plain, mdp.out.src.sid, SID_SIZE) == 0,"SID:SAS mapping signed block is for wrong SID");
   
   bcopy(sas_public, subscriber->sas_public, SAS_SIZE);
   subscriber->sas_valid=1;
   subscriber->sas_last_request=now;
-  return 0;
+  ret = 0;
+  
+error:
+  if (plain) free(plain);
+  return ret;
 }
 
-int serval_verify(const char *sid, 
-	   size_t sid_len,
-	   const char *msg,
-	   size_t msg_len,
+int serval_verify(const char *sid,
+	   const size_t sid_len,
+	   const unsigned char *msg,
+	   const size_t msg_len,
 	   const char *sig,
-	   size_t sig_len) {
+	   const size_t sig_len,
+	   const char *keyringName,
+	   const size_t keyring_len) {
+  
+  char *abs_path = NULL;
+  int verdict = -1;
+  unsigned char combined_msg[msg_len + SIGNATURE_BYTES];
   
   assert(sid_len == 2*SID_SIZE);
   assert(sig_len == 2*SIGNATURE_BYTES);
   
   unsigned char bin_sig[SIGNATURE_BYTES];
-  int valid_sig = fromhexstr(bin_sig,sig,SIGNATURE_BYTES); // convert signature from hex to binary
+  // convert signature from hex to binary
+  CHECK(fromhexstr(bin_sig,sig,SIGNATURE_BYTES) == 0,"Invalid signature");
+
+  CHECK(str_is_subscriber_id(sid) != 0,"Invalid SID");
   
-  if (valid_sig) {
-    fprintf(stderr, "Invalid signature\n");
-    return 1;
-  }
-  if (!str_is_subscriber_id(sid)) {
-    fprintf(stderr,"Invalid SID\n");
-    return 1;
-  }
-  
-  unsigned char combined_msg[msg_len + SIGNATURE_BYTES];
   memcpy(combined_msg,msg,msg_len);
   memcpy(combined_msg + msg_len,bin_sig,SIGNATURE_BYTES); // append signature to end of message
   int combined_msg_length = msg_len + SIGNATURE_BYTES;
   
   char keyringFile[1024];
-  FORM_SERVAL_INSTANCE_PATH(keyringFile, "serval.keyring"); // this should target default Serval keyring
+  
+  if (keyringName == NULL || keyring_len == 0) { 
+    FORM_SERVAL_INSTANCE_PATH(keyringFile, "serval.keyring"); // if no keyring specified, use default keyring
+  }
+  else { // otherwise, use specified keyring (NOTE: if keyring does not exist, it will be created)
+    strncpy(keyringFile,keyringName,keyring_len);
+    keyringFile[keyring_len] = '\0';
+    // Fetching SAS keys requires setting the SERVALINSTANCE_PATH environment variable
+    CHECK((abs_path = realpath(keyringFile,NULL)) != NULL,"Error deriving absolute path from given keyring file");
+    *strrchr(abs_path,'/') = '\0';
+    CHECK(setenv("SERVALINSTANCE_PATH",abs_path,1) == 0,"Failed to set SERVALINSTANCE_PATH env variable");
+  }
+  
   keyring = keyring_open(keyringFile);
-  if (!keyring) {
-    fprintf(stderr, "Failed to open Serval keyring\n");
-    return 1;
-  }
+  CHECK(keyring,"Failed to open Serval keyring");
+
   int num_identities = keyring_enter_pin(keyring, KEYRING_PIN); // unlocks Serval keyring for using identities (also initializes global default identity my_subscriber)
-  if (!num_identities) {
-    fprintf(stderr, "Failed to unlock any Serval identities\n");
-    return 1;
-  }
+  CHECK(num_identities != 0,"Failed to unlock any Serval identities");
   
   unsigned char packedSid[SID_SIZE];
   stowSid(packedSid,0,sid);
   
   struct subscriber *src_sub = find_subscriber(packedSid, SID_SIZE, 1); // get Serval identity described by given SID
   
-  if (!src_sub) {
-    fprintf(stderr, "Failed to fetch Serval subscriber\n");
-    return 1;
-  }
+  CHECK(src_sub,"Failed to fetch Serval subscriber");
   
-  if (keyring_send_sas_request_client(src_sub)) { // send MDP request for SAS public key of given SID
-    printf("SAS request failed\n");
-    return 1;
-  }
+  CHECK(keyring_send_sas_request_client(src_sub) == 0,"SAS request failed");
   
-  if (!src_sub->sas_valid) {
-    fprintf(stderr, "Could not validate the signing key!\n");
-    return 1;
-  }
+  CHECK(src_sub->sas_valid,"Could not validate the signing key!");
   
   DEBUG("Message to verify:");
   DEBUG("\n%s",msg);
   
-  int verdict = crypto_verify_message(src_sub, combined_msg, &combined_msg_length);
+  verdict = crypto_verify_message(src_sub, combined_msg, &combined_msg_length);
   
   if (!verdict) {
     printf("Message verified!\n");
@@ -220,9 +198,10 @@ int serval_verify(const char *sid,
   else {
     printf("Message NOT verified\n");
   }
-  
+
+error:
+  if (abs_path) free(abs_path);
   keyring_free(keyring);
    
   return verdict;
-  
 }

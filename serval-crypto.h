@@ -13,10 +13,32 @@
 #define DEBUG(M, ...) LOG("(%s:%d) " M "\n", __FILE__, __LINE__, ##__VA_ARGS__)
 #endif
 
-void get_msg(unsigned char **msg);
+#define CLEAN_ERRNO() (errno == 0 ? "None" : strerror(errno))
 
-int serval_sign(const char *sid, size_t sid_len, const char *msg, size_t msg_len, char *sig_buffer, size_t sig_size);
+#define ERROR(M, ...) LOG("(%s:%d: errno: %s) " M "\n", __FILE__, __LINE__, CLEAN_ERRNO(), ##__VA_ARGS__)
 
-int serval_verify(const char *sid,size_t sid_len,const char *msg,size_t msg_len,const char *sig,size_t sig_len);
+#define CHECK(A, M, ...) if(!(A)) { ERROR(M, ##__VA_ARGS__); errno=0; goto error; }
+
+#define KEYRING_PIN NULL
+
+void get_msg(char **msg);
+
+int serval_verify(const char *sid,
+		  const size_t sid_len,
+		  const unsigned char *msg,
+		  const size_t msg_len,
+		  const char *sig,
+		  const size_t sig_len,
+		  const char *keyringName,
+		  const size_t keyring_len);
+
+int serval_sign(const char *sid, 
+		const size_t sid_len,
+		const unsigned char *msg,
+		const size_t msg_len,
+		char *sig_buffer,
+		const size_t sig_size,
+		const char *keyringName,
+		const size_t keyring_len);
 
 #endif

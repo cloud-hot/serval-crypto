@@ -1,5 +1,5 @@
 LDFLAGS+=-lservald
-CFLAGS+=-I../serval-dna -I../serval-dna/nacl/include -g -DHAVE_BCOPY
+CFLAGS+=-I../serval-dna -I../serval-dna/nacl/include -g -DHAVE_BCOPY -Wall -Wextra
 OBJS=serval-sign.o serval-verify.o common.o
 DEPS=Makefile serval-crypto.h
 BINDIR=$(DESTDIR)/usr/bin
@@ -20,7 +20,7 @@ libserval-crypto.so: $(DEPS) $(OBJS)
 serval-crypto: $(DEPS) $(OBJS) main.c $(LIBNAME)
 	$(CC) $(CFLAGS) -o $(EXENAME) main.c -L./ -lserval-crypto $(LDFLAGS)
 
-static: $(DEPS) $(OBJS) main.c
+static: $(DEPS) main.c serval-sign.c serval-verify.c common.c
 	$(CC) $(CFLAGS) -o $(EXENAME) main.c serval-sign.c serval-verify.c common.c $(LDFLAGS)
 
 install: bin-install $(LIBNAME) $(INCNAME)
