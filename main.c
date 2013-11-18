@@ -70,7 +70,6 @@ int main ( int argc, char *argv[] ) {
 	break;
       case 'm':
 	msg = (unsigned char*)optarg;
-	msg_len = strlen(optarg);
 	break;
       case 'i':
 	sid = optarg;
@@ -98,6 +97,7 @@ int main ( int argc, char *argv[] ) {
     get_msg((char **)&msg);
     need_cleanup = 1;
   }
+  msg_len = strlen(msg);
   
   if (command == SIGN) {
     verdict = serval_sign(sid,sid ? strlen(sid) : 0,
