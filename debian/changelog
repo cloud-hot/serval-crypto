@@ -1,6 +1,6 @@
-serval-crypto (3.0-1.1) experimental; urgency=low
+serval-crypto (3.0-1.1~saucy0) saucy; urgency=low
 
-  * Debian packaging update
+  * Ubuntu packaging
 
 
  -- Nat Meysenburg <nat@opentechinstitute.org>  Thu, 19 Dec 2013 16:35:56 -0500
